@@ -1,24 +1,29 @@
+import json
+import subprocess
 from typing import List
 from langchain.vectorstores.chroma import Chroma
 from langchain.prompts import ChatPromptTemplate
 from langchain_community.llms.ollama import Ollama
-from langchain_community.embeddings.ollama import OllamaEmbeddings
-from langchain_groq import ChatGroq
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect
+from fastapi import FastAPI, WebSocket, WebSocketDisconnect, HTTPException
 from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
-import json
 import uvicorn
+from update_database import get_embedding_function
 
 app = FastAPI()
 
-llm = ChatGroq(
-    temperature=0, 
-    groq_api_key='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', 
-    model_name="llama-3.1-70b-versatile"
-)
+## for running llm model from Groq
+# from langchain_groq import ChatGroq
+# llm = ChatGroq(
+#     temperature=0, 
+#     groq_api_key='API_KEY', 
+#     model_name="llama-3.1-70b-versatile"
+# )
+
+llm = Ollama(model="llama3:latest")
 
 CHROMA_PATH = "database"
+
 PROMPT_TEMPLATE = """
 Answer the question based only on the following context:
 
@@ -28,12 +33,6 @@ Answer the question based only on the following context:
 
 Answer the question based on the above context: {question}
 """
-
-
-def get_embedding_function():
-    embeddings = OllamaEmbeddings(model="nomic-embed-text")
-    return embeddings
-
 
 # Manage connected WebSocket clients and their conversation histories
 class ConnectionManager:
@@ -84,12 +83,16 @@ def query_rag(query_text: str, client_id: str):
     sources_list = [doc.metadata.get("id", None) for doc, _score in results]
     sources = '\n '.join(sources_list)
 
-    # Create structured response
     formatted_response = {
         "prompt": prompt,
-        "response_text": response_text.content,
         "sources": sources
     }
+
+    # # Create structured response -- if using ChatGroq: 
+    #     formatted_response["response_text"] = response_text.content
+
+    # Create structured response -- if using Ollama: 
+    formatted_response["response_text"] = response_text
 
     return formatted_response
 
@@ -117,8 +120,6 @@ async def get_html():
         return f.read()
 
 
-import subprocess
-from fastapi import FastAPI, HTTPException
 
 # Existing FastAPI app and imports...
 
@@ -127,7 +128,8 @@ async def update_database():
     try:
         # Run the update_database.py script
         subprocess.run(["python", "update_database.py"], check=True)
-        return {"message": "Database updated successfully!"}
+        
+        return {"message": "Database updated successfully! Please restart the server to apply changes."}
     except subprocess.CalledProcessError as e:
         raise HTTPException(status_code=500, detail="Database update failed.")
 

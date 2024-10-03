@@ -5,13 +5,18 @@ import os
 import shutil
 from langchain.document_loaders.pdf import PyPDFDirectoryLoader
 from langchain_text_splitters import RecursiveCharacterTextSplitter
+from langchain_community.embeddings.ollama import OllamaEmbeddings
 from langchain.schema.document import Document
-from get_embedding_function import get_embedding_function
 from langchain.vectorstores.chroma import Chroma
+
 
 
 CHROMA_PATH = "database"
 DATA_PATH = "source_docs"
+
+def get_embedding_function():
+    embeddings = OllamaEmbeddings(model="nomic-embed-text")
+    return embeddings
 
 
 def main():
@@ -43,6 +48,8 @@ def split_documents(documents: list[Document]):
         is_separator_regex=False,
     )
     return text_splitter.split_documents(documents)
+
+
 
 
 def add_to_chroma(chunks: list[Document]):
