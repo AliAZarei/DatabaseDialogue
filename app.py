@@ -1,7 +1,7 @@
 import json
 import subprocess
 from typing import List
-from langchain.vectorstores.chroma import Chroma
+from langchain_chroma import Chroma  # Updated import for Chroma
 from langchain.prompts import ChatPromptTemplate
 from langchain_community.llms.ollama import Ollama
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect, HTTPException
@@ -12,15 +12,15 @@ from update_database import get_embedding_function
 
 app = FastAPI()
 
-## for running llm model from Groq
+# for running llm model from Groq
 # from langchain_groq import ChatGroq
 # llm = ChatGroq(
 #     temperature=0, 
-#     groq_api_key='API_KEY', 
+#     groq_api_key='Groq API Key', 
 #     model_name="llama-3.1-70b-versatile"
 # )
 
-llm = Ollama(model="llama3:latest")
+llm = Ollama(model="llama3.1:8b")
 
 CHROMA_PATH = "database"
 
@@ -58,7 +58,10 @@ class ConnectionManager:
     def update_context(self, client_id: str, query_text: str, response_data):
         if client_id in self.conversation_context:
             # Append the query and response to the conversation history
-            self.conversation_context[client_id].append({"query": query_text, "response": response_data["response_text"]})
+            if isinstance(response_data, dict):
+                self.conversation_context[client_id].append({"query": query_text, "response": response_data["response_text"]})
+            elif isinstance(response_data, str):    
+                self.conversation_context[client_id].append({"query": query_text, "response": response_data})
 
 manager = ConnectionManager()
 
@@ -80,6 +83,7 @@ def query_rag(query_text: str, client_id: str):
     prompt = prompt_template.format(context=full_context, question=query_text)
 
     response_text = llm.invoke(prompt)
+    print(prompt)
     sources_list = [doc.metadata.get("id", None) for doc, _score in results]
     sources = '\n '.join(sources_list)
 
@@ -88,11 +92,14 @@ def query_rag(query_text: str, client_id: str):
         "sources": sources
     }
 
-    # # Create structured response -- if using ChatGroq: 
-    #     formatted_response["response_text"] = response_text.content
-
-    # Create structured response -- if using Ollama: 
-    formatted_response["response_text"] = response_text
+    if isinstance(response_text, str):
+        ## Create structured response -- if using Ollama:
+        formatted_response["response_text"] = response_text
+        print(f'str, {response_text}')
+    else:
+        ## Create structured response -- if using ChatGroq:
+        formatted_response["response_text"] = response_text.content
+        print(f'dic, {response_text.content}')
 
     return formatted_response
 
