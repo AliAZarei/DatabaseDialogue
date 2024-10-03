@@ -1,0 +1,139 @@
+from typing import List
+from langchain.vectorstores.chroma import Chroma
+from langchain.prompts import ChatPromptTemplate
+from langchain_community.llms.ollama import Ollama
+from langchain_community.embeddings.ollama import OllamaEmbeddings
+from langchain_groq import ChatGroq
+from fastapi import FastAPI, WebSocket, WebSocketDisconnect
+from fastapi.responses import HTMLResponse
+from fastapi.staticfiles import StaticFiles
+import json
+import uvicorn
+
+app = FastAPI()
+
+llm = ChatGroq(
+    temperature=0, 
+    groq_api_key='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', 
+    model_name="llama-3.1-70b-versatile"
+)
+
+CHROMA_PATH = "database"
+PROMPT_TEMPLATE = """
+Answer the question based only on the following context:
+
+{context}
+
+---
+
+Answer the question based on the above context: {question}
+"""
+
+
+def get_embedding_function():
+    embeddings = OllamaEmbeddings(model="nomic-embed-text")
+    return embeddings
+
+
+# Manage connected WebSocket clients and their conversation histories
+class ConnectionManager:
+    def __init__(self):
+        self.active_connections: List[WebSocket] = []
+        self.conversation_context = {}
+
+    async def connect(self, websocket: WebSocket, client_id: str):
+        await websocket.accept()
+        self.active_connections.append(websocket)
+        # Initialize conversation context for the client
+        self.conversation_context[client_id] = []
+
+    def disconnect(self, websocket: WebSocket, client_id: str):
+        self.active_connections.remove(websocket)
+        # Remove the conversation context for the client
+        if client_id in self.conversation_context:
+            del self.conversation_context[client_id]
+
+    async def send_message(self, message: str, websocket: WebSocket):
+        await websocket.send_text(message)
+
+    def update_context(self, client_id: str, query_text: str, response_data):
+        if client_id in self.conversation_context:
+            # Append the query and response to the conversation history
+            self.conversation_context[client_id].append({"query": query_text, "response": response_data["response_text"]})
+
+manager = ConnectionManager()
+
+# Query function for RAG (Retrieval-Augmented Generation)
+def query_rag(query_text: str, client_id: str):
+    # Retrieve and store context for the conversation
+    previous_context = "\n\n---\n\n".join([item['response'] for item in manager.conversation_context.get(client_id, [])])
+
+    # Prepare the DB
+    embedding_function = get_embedding_function()
+    db = Chroma(persist_directory=CHROMA_PATH, embedding_function=embedding_function)
+
+    # Search the DB
+    results = db.similarity_search_with_score(query_text, k=5)
+
+    context_text = "\n\n---\n\n".join([doc.page_content for doc, _score in results])
+    full_context = previous_context + "\n\n" + context_text if previous_context else context_text
+    prompt_template = ChatPromptTemplate.from_template(PROMPT_TEMPLATE)
+    prompt = prompt_template.format(context=full_context, question=query_text)
+
+    response_text = llm.invoke(prompt)
+    sources_list = [doc.metadata.get("id", None) for doc, _score in results]
+    sources = '\n '.join(sources_list)
+
+    # Create structured response
+    formatted_response = {
+        "prompt": prompt,
+        "response_text": response_text.content,
+        "sources": sources
+    }
+
+    return formatted_response
+
+# WebSocket route to manage real-time chat
+@app.websocket("/ws/chat/{client_id}")
+async def websocket_endpoint(websocket: WebSocket, client_id: str):
+    await manager.connect(websocket, client_id)
+    try:
+        while True:
+            data = await websocket.receive_text()
+            response_data = query_rag(data, client_id)  # Get structured response
+            manager.update_context(client_id, data, response_data)
+            
+            # Send the response as a JSON string
+            await websocket.send_text(json.dumps(response_data))
+    except WebSocketDisconnect:
+        manager.disconnect(websocket, client_id)
+
+# Serve your HTML file and static files
+app.mount("/static", StaticFiles(directory="static"), name="static")
+
+@app.get("/", response_class=HTMLResponse)
+async def get_html():
+    with open("static/chat_box.html") as f:  # Make sure the path matches your HTML file name
+        return f.read()
+
+
+import subprocess
+from fastapi import FastAPI, HTTPException
+
+# Existing FastAPI app and imports...
+
+@app.post("/update-database")
+async def update_database():
+    try:
+        # Run the update_database.py script
+        subprocess.run(["python", "update_database.py"], check=True)
+        return {"message": "Database updated successfully!"}
+    except subprocess.CalledProcessError as e:
+        raise HTTPException(status_code=500, detail="Database update failed.")
+
+
+# Run the application
+if __name__ == '__main__':
+    uvicorn.run(app, host="0.0.0.0", port=80)
+
+
