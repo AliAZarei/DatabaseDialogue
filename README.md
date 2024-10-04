@@ -1,6 +1,9 @@
 # DatabaseDialogue
 This repository hosts a local chat application that connects to a vectorized Chroma database, generated from user-provided documents. The application enables real-time updates and delivers dynamic responses using local AI models, such as Llama. Users can send messages through a FastAPI interface, and the application processes these messages using the latest data from the database. The application allows for updating the database and requires a server restart to reflect the changes in the chat context. 
 
+![DatabaseDialogue_Demo](https://github.com/user-attachments/assets/410ccb30-3ec5-4961-b545-4680c4a3de45)
+
+
 ### Key Features:
 - Real-time Chat: Communicate with the system using your documents as the knowledge base.
 - Dynamic Query Processing: The system provides responses based on the latest database state.
