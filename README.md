@@ -1,4 +1,4 @@
-![Demo_gif](https://github.com/user-attachments/assets/00f68b89-e204-4258-bd20-2061f1c9de6e)# DatabaseDialogue
+# DatabaseDialogue
 This repository hosts a local chat application powered by a Retrieval-Augmented Generation (RAG) model. It connects to a vectorized Chroma database, generated from user-provided documents, enabling real-time updates and delivering dynamic, contextually relevant responses. The application enables real-time updates and delivers dynamic responses using local AI models, such as Llama. Users can send messages through a FastAPI interface, and the application processes these messages using the latest data from the database. The application allows for updating the database and requires a server restart to reflect the changes in the chat context. 
 
 
