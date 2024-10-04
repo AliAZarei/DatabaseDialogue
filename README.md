@@ -16,9 +16,10 @@ This repository hosts a local chat application powered by a Retrieval-Augmented 
 
 - Python 3.7 or higher
 - FastAPI
+- ChromaDB
+- ollama
 - Uvicorn
 - WebSocket support
-- A local database (SQLite, PostgreSQL, etc.) or a JSON file
 
 ## Set-up
 
