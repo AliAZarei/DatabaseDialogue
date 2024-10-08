@@ -16,6 +16,11 @@ This repository hosts a local chat application that connects to a vectorized Chr
 - WebSocket support
 - A local database (SQLite, PostgreSQL, etc.) or a JSON file
 
+
+## Supported File Types
+The current version supports `.pdf`, `.txt`, and `.docx` files in the `source_docs` folder.
+
+
 ## Set-up
 
 ### 1. Clone the repository:
@@ -78,4 +83,3 @@ You can modify the app.py file to integrate different AI models for responses (e
 
 ### Database: 
 The database is vectorized using Chroma and can be updated by modifying the data sources used in the update_database.py script.
-The Chroma database creation is inspierd by https://github.com/pixegami
