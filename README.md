@@ -86,9 +86,3 @@ uvicorn app:app --reload
 <!-- ### Models:  -->
 You can modify the app.py file to integrate different AI models for responses (e.g., replace Llama with another model).
 
-### Database: 
-The database is vectorized using Chroma and can be updated by modifying the data sources used in the update_database.py script.
-<<<<<<< HEAD
-=======
-The Chroma database creation is inspired by https://github.com/pixegami
->>>>>>> d461dd2609fc7e235bd00ba87ad1e57dd2be2b15
