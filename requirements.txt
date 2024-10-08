@@ -19,3 +19,6 @@ sentence_transformers
 chromadb == 0.5.11
 uvicorn
 fastapi
+docx
+python-docx
+unstructured
