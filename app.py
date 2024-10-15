@@ -1,3 +1,4 @@
+import os
 import json
 import subprocess
 from typing import List
@@ -7,20 +8,38 @@ from langchain_community.llms.ollama import Ollama
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect, HTTPException
 from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
+from dotenv import load_dotenv
 import uvicorn
 from update_database import get_embedding_function
+load_dotenv()
+
+CONNECT_GROQ = False
+
+if CONNECT_GROQ:
+    # # Get the API key from the environment variable
+    groq_api_key_ = os.getenv("GROQ_API_KEY")
+    print(f'groq_api_key_: {groq_api_key_}')
+    if groq_api_key_ is None:
+        print("GROQ API key not found. Please check your .env file.")
+        print("Connecting to Ollama API...")
+        llm = Ollama(model="llama3.1:8b")
+    else:
+        print("Connecting to Groq API...")
+        ## for running llm model from Groq
+        from langchain_groq import ChatGroq
+        llm = ChatGroq(
+            temperature=0, 
+            groq_api_key=groq_api_key_, 
+            model_name="llama-3.1-70b-versatile"
+        )
+else:
+    ## for running llm model from Ollama
+    print("Connecting to Ollama API...")
+    llm = Ollama(model="llama3.1:8b")
+        
+
 
 app = FastAPI()
-
-# for running llm model from Groq
-# from langchain_groq import ChatGroq
-# llm = ChatGroq(
-#     temperature=0, 
-#     groq_api_key='Groq API Key', 
-#     model_name="llama-3.1-70b-versatile"
-# )
-
-llm = Ollama(model="llama3.1:8b")
 
 CHROMA_PATH = "database"
 
@@ -83,7 +102,7 @@ def query_rag(query_text: str, client_id: str):
     prompt = prompt_template.format(context=full_context, question=query_text)
 
     response_text = llm.invoke(prompt)
-    print(prompt)
+    
     sources_list = [doc.metadata.get("id", None) for doc, _score in results]
     sources = '\n '.join(sources_list)
 
